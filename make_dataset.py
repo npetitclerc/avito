@@ -6,7 +6,7 @@ X_train = pd.DataFrame()
 Y_train = pd.DataFrame()
 
 #for chunk in pd.read_sql_query("SELECT * FROM trainSearchStream", engine, chunksize=1000):
-for chunk in pd.read_sql_query("SELECT * FROM trainSearchStream limit 10", engine, chunksize=5):
+for chunk in pd.read_sql_query("SELECT * FROM trainSearchStream limit 20", engine, chunksize=5):
 
     Y_train_temp = chunk['IsClick']
     del chunk['IsClick']
@@ -16,7 +16,7 @@ for chunk in pd.read_sql_query("SELECT * FROM trainSearchStream limit 10", engin
     
     # AdID, LocationID, CategoryID, Params, Price, Title
     #TODO: Params and Title are ignored
-    ads_temp = pd.read_sql_query("SELECT AdID, LocationID, CategoryID, Price FROM AdsInfo where AdID in (" + ",".join(map(str, adids)) + ");", engine)
+    ads_temp = pd.read_sql_query("SELECT AdID, LocationID as AdLocationID, CategoryID as AdCategoryID, Price FROM AdsInfo where AdID in (" + ",".join(map(str, adids)) + ");", engine)
     
     # SearchID, SearchDate, UserID, IsUserLoggedOn, IPID, SearchQuery, SearchLocationID, SearchCategoryID, SearchParams
     #TODO: SearchQuery and SearchParams are ignored 
@@ -35,6 +35,15 @@ for chunk in pd.read_sql_query("SELECT * FROM trainSearchStream limit 10", engin
     # CategoryID, Level, ParentCategoryID, SubcategoryID
     scat_ids = search_temp['SearchCategoryID'].unique()
     scat_temp = pd.read_sql_query("SELECT CategoryID as SearchCategoryID, Level as SearchCatLevel, ParentCategoryID as SearchParentCategoryID, SubcategoryID as SearchSubcategoryID FROM Category where SearchCategoryID in (" + ",".join(map(str, scat_ids)) + ");", engine)
+
+    # Ad info
+    # LocationID, Level, RegionID, CityID
+    aloc_ids = ads_temp['AdLocationID'].unique()
+    aloc_temp = pd.read_sql_query("SELECT LocationID as AdLocationID, Level as AdLocLevel, RegionID as AdRegionID, CityID as AdCityID FROM Location where AdLocationID in (" + ",".join(map(str, aloc_ids)) + ");", engine)
+    
+    # CategoryID, Level, ParentCategoryID, SubcategoryID
+    acat_ids = search_temp['AdCategoryID'].unique()
+    acat_temp = pd.read_sql_query("SELECT CategoryID as AdCategoryID, Level as AdCatLevel, ParentCategoryID as AdParentCategoryID, SubcategoryID as AdSubcategoryID FROM Category where AdCategoryID in (" + ",".join(map(str, scat_ids)) + ");", engine)
     
 
     # Join tables
@@ -44,6 +53,9 @@ for chunk in pd.read_sql_query("SELECT * FROM trainSearchStream limit 10", engin
     
     X_train_temp = pd.merge(X_train_temp, sloc_temp, how='left', on=['SearchLocationID'])
     X_train_temp = pd.merge(X_train_temp, scat_temp, how='left', on=['SearchCategoryID'])
+    X_train_temp = pd.merge(X_train_temp, aloc_temp, how='left', on=['AdLocationID'])
+    X_train_temp = pd.merge(X_train_temp, acat_temp, how='left', on=['AdCategoryID'])
+
     X_train = X_train.append(X_train_temp)
     
     print X_train_temp     
