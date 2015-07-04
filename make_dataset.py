@@ -45,14 +45,6 @@ for chunk in pd.read_sql_query("SELECT * FROM trainSearchStream limit 20", engin
     acat_ids = ads_temp['AdCategoryID'].unique()
     acat_temp = pd.read_sql_query("SELECT CategoryID as AdCategoryID, Level as AdCatLevel, ParentCategoryID as AdParentCategoryID, SubcategoryID as AdSubcategoryID FROM Category where AdCategoryID in (" + ",".join(map(str, acat_ids)) + ");", engine)
     
-    # Add visit and phone request stats
-    user_ad = zip(X_train_temp['UserID'], X_train_temp['AdID'])
-    counts_visit, counts_phone = np.zeros(len(user_ad)), np.zeros(len(user_ad))
-    for i, u_a in enumerate(user_ad):
-        counts_visit[i] = pd.read_sql_query("SELECT count(*) as c FROM VisitsStream WHERE UserID=" + u_a[0] + " AND AdID=" + u_a[1])['c'][0]
-        counts_phone[i] = pd.read_sql_query("SELECT count(*) as c FROM PhoneRequestsStream WHERE UserID=" + u_a[0] + " AND AdID=" + u_a[1])['c'][0]
-
-    
     # Join tables
     X_train_temp = pd.merge(X_train_temp, ads_temp, how='left', on=['AdID'])
     X_train_temp = pd.merge(X_train_temp, search_temp, how='left', on=['SearchID'])    
@@ -62,6 +54,13 @@ for chunk in pd.read_sql_query("SELECT * FROM trainSearchStream limit 20", engin
     X_train_temp = pd.merge(X_train_temp, scat_temp, how='left', on=['SearchCategoryID'])
     X_train_temp = pd.merge(X_train_temp, aloc_temp, how='left', on=['AdLocationID'])
     X_train_temp = pd.merge(X_train_temp, acat_temp, how='left', on=['AdCategoryID'])
+
+    # Add visit and phone request stats
+    user_ad = zip(X_train_temp['UserID'], X_train_temp['AdID'])
+    counts_visit, counts_phone = np.zeros(len(user_ad)), np.zeros(len(user_ad))
+    for i, u_a in enumerate(user_ad):
+        counts_visit[i] = pd.read_sql_query("SELECT count(*) as c FROM VisitsStream WHERE UserID=" + u_a[0] + " AND AdID=" + u_a[1])['c'][0]
+        counts_phone[i] = pd.read_sql_query("SELECT count(*) as c FROM PhoneRequestsStream WHERE UserID=" + u_a[0] + " AND AdID=" + u_a[1])['c'][0]
 
     X_train_temp['visits'] = counts_visit
     X_train_temp['phone_requests'] = counts_phone
