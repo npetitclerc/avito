@@ -5,8 +5,8 @@ engine = create_engine('sqlite:////home/ubuntu/data/avito/db/database.sqlite')
 X_train = pd.DataFrame()
 Y_train = pd.DataFrame()
 
-#for chunk in pd.read_sql_query("SELECT * FROM trainSearchStream", engine, chunksize=1000):
-for chunk in pd.read_sql_query("SELECT * FROM trainSearchStream limit 20", engine, chunksize=5):
+for chunk in pd.read_sql_query("SELECT * FROM trainSearchStream limit 2000", engine, chunksize=1000):
+    # for chunk in pd.read_sql_query("SELECT * FROM trainSearchStream", engine, chunksize=10000):
 
     Y_train = Y_train.append(chunk['IsClick'])
     del chunk['IsClick']
@@ -39,10 +39,12 @@ for chunk in pd.read_sql_query("SELECT * FROM trainSearchStream limit 20", engin
     # Ad info
     # LocationID, Level, RegionID, CityID
     aloc_ids = ads_temp['AdLocationID'].unique()
+    aloc_ids = [a for a in aloc_ids if a]
     aloc_temp = pd.read_sql_query("SELECT LocationID as AdLocationID, Level as AdLocLevel, RegionID as AdRegionID, CityID as AdCityID FROM Location where AdLocationID in (" + ",".join(map(str, aloc_ids)) + ");", engine)
     
     # CategoryID, Level, ParentCategoryID, SubcategoryID
     acat_ids = ads_temp['AdCategoryID'].unique()
+    acat_ids = [a for a in acat_ids if a]
     acat_temp = pd.read_sql_query("SELECT CategoryID as AdCategoryID, Level as AdCatLevel, ParentCategoryID as AdParentCategoryID, SubcategoryID as AdSubcategoryID FROM Category where AdCategoryID in (" + ",".join(map(str, acat_ids)) + ");", engine)
     
     # Join tables
@@ -69,4 +71,6 @@ for chunk in pd.read_sql_query("SELECT * FROM trainSearchStream limit 20", engin
     
     print X_train_temp     
     
+X_train.to_csv("X_train.csv", index=False)    
+Y_train.to_csv("Y_train.csv", index=False)
     
