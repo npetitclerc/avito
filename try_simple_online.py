@@ -67,9 +67,11 @@ def make_chunk_features(chunk):
 
     X_train_temp['visits'] = counts_visit
     X_train_temp['phone_requests'] = counts_phone
-    return X_train_temp, Y_train_temp
+    del X_train_temp['SearchDate'] #TODO
+    X_train_temp = X_train_temp.replace('', 0, regex=True) # Replace empty strings by zeros
+    return X_train_temp.fillna(0), Y_train_temp
 
-
+n_train, n_train_pos, scores = 0, 0, []
 all_classes = np.array([0, 1])
 clf = PassiveAggressiveClassifier()
 #TODO: 
@@ -77,9 +79,9 @@ clf = PassiveAggressiveClassifier()
 # clf = Perceptron(), 
 # clf = MultinomialNB(alpha=0.01)
     
-for irun, chunk in enumerate(pd.read_sql_query("SELECT * FROM trainSearchStream limit 30000", engine, chunksize=10000)):
+for irun, chunk in enumerate(pd.read_sql_query("SELECT * FROM trainSearchStream WHERE IsClick IN (0,1) limit 240000;", engine, chunksize=20000)):
     # for chunk in pd.read_sql_query("SELECT * FROM trainSearchStream", engine, chunksize=10000):
-    if irun = 0:
+    if irun == 0:
         X_val, Y_val = make_chunk_features(chunk)
     else:
         X_train_temp, Y_train_temp = make_chunk_features(chunk)   
@@ -87,8 +89,9 @@ for irun, chunk in enumerate(pd.read_sql_query("SELECT * FROM trainSearchStream 
             
         n_train += len(X_train_temp)
         n_train_pos += sum(Y_train_temp)
-        scores.append(clf.score(X_val, Y_val))
-        print "Score: ", scores[-1], "n_train: ", n_train, "n_train_pos: ", n_train_pos
+        s = clf.score(X_val.values.astype(float), Y_val.values.astype(float), scoring='log_loss')
+        scores.append(s)
+        print "Score: ", s, "n_train: ", n_train, "n_train_pos: ", n_train_pos
 
     #print X_train_temp     
 print scores    
