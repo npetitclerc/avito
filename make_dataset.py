@@ -5,8 +5,8 @@ engine = create_engine('sqlite:////home/ubuntu/data/avito/db/database.sqlite')
 X_train = pd.DataFrame()
 Y_train = pd.DataFrame()
 
-#for chunk in pd.read_sql_query("SELECT * FROM trainSearchStream limit 2000", engine, chunksize=1000):
-for chunk in pd.read_sql_query("SELECT * FROM trainSearchStream", engine, chunksize=10000):
+for chunk in pd.read_sql_query("SELECT * FROM trainSearchStream limit 2000", engine, chunksize=1000):
+    # for chunk in pd.read_sql_query("SELECT * FROM trainSearchStream", engine, chunksize=10000):
 
     Y_train = Y_train.append(chunk['IsClick'])
     del chunk['IsClick']
