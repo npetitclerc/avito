@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 from sqlalchemy import create_engine
 engine = create_engine('sqlite:////home/ubuntu/data/avito/db/database.sqlite')
@@ -61,8 +62,8 @@ for chunk in pd.read_sql_query("SELECT * FROM trainSearchStream limit 2000", eng
     user_ad = zip(X_train_temp['UserID'], X_train_temp['AdID'])
     counts_visit, counts_phone = np.zeros(len(user_ad)), np.zeros(len(user_ad))
     for i, u_a in enumerate(user_ad):
-        counts_visit[i] = pd.read_sql_query("SELECT count(*) as c FROM VisitsStream WHERE UserID=" + u_a[0] + " AND AdID=" + u_a[1])['c'][0]
-        counts_phone[i] = pd.read_sql_query("SELECT count(*) as c FROM PhoneRequestsStream WHERE UserID=" + u_a[0] + " AND AdID=" + u_a[1])['c'][0]
+        counts_visit[i] = pd.read_sql_query("SELECT count(*) as c FROM VisitsStream WHERE UserID=" + str(u_a[0]) + " AND AdID=" + str(u_a[1]), engine)['c'][0]
+        counts_phone[i] = pd.read_sql_query("SELECT count(*) as c FROM PhoneRequestsStream WHERE UserID=" + str(u_a[0]) + " AND AdID=" + str(u_a[1]), engine)['c'][0]
 
     X_train_temp['visits'] = counts_visit
     X_train_temp['phone_requests'] = counts_phone
