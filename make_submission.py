@@ -12,12 +12,12 @@ def make_chunk_features(chunk):
     """ Make all queries to build the chunk's features
     """
     X_test = chunk[['HistCTR', 'Position']]
-    output = pd.DataFrame(chunk['TestId'])
+    output = pd.DataFrame(chunk['TestId'].astype(int), columns=['ID'])
     X_test = X_test.replace('', 0, regex=True) # Replace empty strings by zeros
     return X_test, output
 
 clf = pickle.load(open(clf_file, 'r'))    
-output = pd.DataFrame(columns=['TestId', 'IsClick'])
+output = pd.DataFrame(columns=['ID', 'IsClick'])
 all_classes = np.array([0, 1])
 t0 = time.time()    
 tf = t0
