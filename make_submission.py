@@ -2,18 +2,22 @@ import numpy as np
 import pandas as pd
 from sqlalchemy import create_engine
 import time
+import pickle
 
 engine = create_engine('sqlite:////home/ubuntu/data/avito/db/database.sqlite')
 submission_file = "submission.csv"
+clf_file = "clf_SGD_histctr_pos.pkl"
+
 def make_chunk_features(chunk):
     """ Make all queries to build the chunk's features
     """
     X_test = chunk[['HistCTR', 'Position']]
-    output = chunk['TestID']
+    output = pd.DataFrame(chunk['TestId'])
     X_test = X_test.replace('', 0, regex=True) # Replace empty strings by zeros
     return X_test, output
-    
-output = pd.DataFrame(columns=['TestID', 'IsClick'])
+
+clf = pickle.load(open(clf_file, 'r'))    
+output = pd.DataFrame(columns=['TestId', 'IsClick'])
 all_classes = np.array([0, 1])
 t0 = time.time()    
 tf = t0
@@ -24,9 +28,9 @@ for irun, chunk in enumerate(pd.read_sql_query("SELECT TestId, HistCTR, Position
     X_test_temp, output_temp = make_chunk_features(chunk)   
     tj = time.time()
     print "Make feature time: ", tj - ti
-    y_pred = clf.predict_proba(chunk.values.astype(float))
+    y_pred = clf.predict_proba(X_test_temp.values.astype(float))
     
-    output_temp['IsClick'] = y_pred.values
+    output_temp['IsClick'] = y_pred[:,1]
     output = output.append(output_temp)
     
     tf = time.time()
