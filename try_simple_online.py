@@ -1,7 +1,10 @@
 import numpy as np
 import pandas as pd
 from sqlalchemy import create_engine
-from sklearn.linear_model import PassiveAggressiveClassifier
+from sklearn.naive_bayes import MultinomialNB
+from sklearn.linear_model import SGDClassifier, Perceptron, PassiveAggressiveClassifier
+from sklearn.metrics import log_loss
+import time
 
 engine = create_engine('sqlite:////home/ubuntu/data/avito/db/database.sqlite')
 
@@ -71,30 +74,45 @@ def make_chunk_features(chunk):
     X_train_temp = X_train_temp.replace('', 0, regex=True) # Replace empty strings by zeros
     return X_train_temp.fillna(0), Y_train_temp
 
-n_train, n_train_pos, scores = 0, 0, []
+n_train, n_train_pos, losses = 0, 0, []
 all_classes = np.array([0, 1])
-clf = PassiveAggressiveClassifier()
+#clf = PassiveAggressiveClassifier()
 #TODO: 
-# clf = SGDClassifier(), 
-# clf = Perceptron(), 
-# clf = MultinomialNB(alpha=0.01)
-    
-for irun, chunk in enumerate(pd.read_sql_query("SELECT * FROM trainSearchStream WHERE IsClick IN (0,1) limit 240000;", engine, chunksize=20000)):
+clf = SGDClassifier(loss='log', n_jobs=-1) 
+#clf = Perceptron() 
+#clf = MultinomialNB(alpha=0.01)
+t0 = time.time()    
+tf = t0
+for irun, chunk in enumerate(pd.read_sql_query("SELECT * FROM trainSearchStream WHERE IsClick IN (0,1) ORDER BY RANDOM();", engine, chunksize=2000000)):
     # for chunk in pd.read_sql_query("SELECT * FROM trainSearchStream", engine, chunksize=10000):
+    ti = time.time()
+    print "Query time: ", ti - tf
     if irun == 0:
         X_val, Y_val = make_chunk_features(chunk)
+        tj = time.time()
+        print "Make feature time: ", tj - ti
     else:
         X_train_temp, Y_train_temp = make_chunk_features(chunk)   
+        tj = time.time()
+        print "Make feature time: ", tj - ti
         clf.partial_fit(X_train_temp, Y_train_temp, classes=all_classes)
             
         n_train += len(X_train_temp)
         n_train_pos += sum(Y_train_temp)
-        s = clf.score(X_val.values.astype(float), Y_val.values.astype(float), scoring='log_loss')
-        scores.append(s)
-        print "Score: ", s, "n_train: ", n_train, "n_train_pos: ", n_train_pos
+        y_pred = clf.predict_proba(X_val.values.astype(float))
+        logloss = log_loss(Y_val.values.astype(float), y_pred)
+        losses.append(logloss)
+        print "Logloss: ", logloss, "n_train: ", n_train, "n_train_pos: ", n_train_pos
+        #s = clf.score(X_val.values.astype(float), Y_val.values.astype(float))
+        #scores.append(s)
+        #print "Score: ", s, "n_train: ", n_train, "n_train_pos: ", n_train_pos
+    tf = time.time()
+    print "Training time: ", tj - ti
+y_pred = clf.predict_proba(X_val.values.astype(float))
+logloss = log_loss(Y_val.values.astype(float), y_pred)
+#print scores    
+print "Logloss: ", logloss
 
-    #print X_train_temp     
-print scores    
 #X_train.to_csv("X_train.csv", index=False)    
 #Y_train.to_csv("Y_train.csv", index=False)
     
