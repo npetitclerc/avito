@@ -7,6 +7,7 @@ from sklearn.metrics import log_loss
 import time
 
 engine = create_engine('sqlite:////home/ubuntu/data/avito/db/database.sqlite')
+engine2 = create_engine('sqlite:////home/ubuntu/data/avito/db/database2.sqlite')
 
 def make_chunk_features(chunk):
     """ Make all queries to build the chunk's features and return X and Y
@@ -15,7 +16,7 @@ def make_chunk_features(chunk):
     Y_train_temp = chunk['IsClick']
     del chunk['IsClick']
     X_train_temp = chunk[['HistCTR', 'Position']]
-#    adids = X_train_temp['AdID'].unique()
+    adids = X_train_temp['AdID'].unique()
 #    searchids = X_train_temp['SearchID'].unique()
      
     # AdID, LocationID, CategoryID, Params, Price, Title
@@ -78,12 +79,14 @@ n_train, n_train_pos, losses = 0, 0, []
 all_classes = np.array([0, 1])
 #clf = PassiveAggressiveClassifier()
 #TODO: 
-clf = SGDClassifier(loss='log', n_jobs=-1) 
+#clf = SGDClassifier(loss='log', n_jobs=-1) 
 #clf = Perceptron() 
-#clf = MultinomialNB(alpha=0.01)
+clf = MultinomialNB(alpha=0.01)
 t0 = time.time()    
 tf = t0
-for irun, chunk in enumerate(pd.read_sql_query("SELECT * FROM trainSearchStream WHERE IsClick IN (0,1) ORDER BY RANDOM();", engine, chunksize=2000000)):
+#for irun, chunk in enumerate(pd.read_sql_query("SELECT * FROM trainSearchStream WHERE IsClick IN (0,1) ORDER BY RANDOM();", engine, chunksize=2000000)):
+#for irun, chunk in enumerate(pd.read_sql_query("SELECT * FROM trainSearchStream WHERE IsClick IN (0,1);", engine, chunksize=2000000)):
+for irun, chunk in enumerate(pd.read_sql_query("SELECT * FROM trainSearchRandom;", engine2, chunksize=2000000)):
     # for chunk in pd.read_sql_query("SELECT * FROM trainSearchStream", engine, chunksize=10000):
     ti = time.time()
     print "Query time: ", ti - tf

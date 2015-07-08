@@ -4,7 +4,7 @@ from sqlalchemy import create_engine
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.linear_model import SGDClassifier, Perceptron, PassiveAggressiveClassifier
 from sklearn.metrics import log_loss
-import time
+import os, time
 import pickle
 
 engine = create_engine('sqlite:////home/ubuntu/data/avito/db/database.sqlite')
@@ -111,6 +111,6 @@ for irun, chunk in enumerate(pd.read_sql_query("SELECT * FROM trainSearchStream 
 y_pred = clf.predict_proba(X_val.values.astype(float))
 logloss = log_loss(Y_val.values.astype(float), y_pred)
 print "Logloss: ", logloss
-pickle.dump(clf, os.path.splitext(clf_file)[0] + '2' + os.path.splitext(clf_file)[1])
+pickle.dump(clf, open(os.path.splitext(clf_file)[0] + '2' + os.path.splitext(clf_file)[1], 'w'))
 
     
