@@ -21,7 +21,7 @@ def make_chunk_features(chunk):
     
     visit_temp = pd.read_sql_query("SELECT AdID, count(*) as c_visit FROM VisitsStream WHERE AdID in (" + ",".join(map(str, adids)) + ") GROUP BY AdID;", engine)
     phone_temp = pd.read_sql_query("SELECT AdID, count(*) as c_phone FROM PhoneRequestsStream WHERE AdID in (" + ",".join(map(str, adids)) + ") GROUP BY AdID;", engine)
-    search_temp = pd.read_sql_query("SELECT AdID, count(*) as c_search FROM SearchStream WHERE AdID in (" + ",".join(map(str, adids)) + ") GROUP BY AdID;", engine)
+    search_temp = pd.read_sql_query("SELECT AdID, count(*) as c_search FROM trainSearchRandom WHERE AdID in (" + ",".join(map(str, adids)) + ") GROUP BY AdID;", engine2)
     
     visit_temp['c_ratio_visit'] = visit_temp['c_visit'] / search_temp['c_search'].astype(float)
     phone_temp['c_ratio_phone'] = phone_temp['c_phone'] / search_temp['c_search'].astype(float)    
@@ -62,6 +62,7 @@ def make_chunk_features(chunk):
     # Join tables
     X_train_temp = pd.merge(X_train_temp, visit_temp, how='left', on=['AdID'])
     X_train_temp = pd.merge(X_train_temp, phone_temp, how='left', on=['AdID'])
+    X_train_temp = pd.merge(X_train_temp, search_temp, how='left', on=['AdID'])
 #    X_train_temp = pd.merge(X_train_temp, ads_temp, how='left', on=['AdID'])
 #    X_train_temp = pd.merge(X_train_temp, search_temp, how='left', on=['SearchID'])    
 #    X_train_temp = pd.merge(X_train_temp, user_temp, how='left', on=['UserID']) 
@@ -82,16 +83,16 @@ def make_chunk_features(chunk):
 #    X_train_temp['phone_requests'] = counts_phone
 #    del X_train_temp['SearchDate'] #TODO
 #    X_train_temp = X_train_temp.replace('', 0, regex=True) # Replace empty strings by zeros
-    print X_train_temp
+    print X_train_temp[:10]
     return X_train_temp.fillna(0), Y_train_temp
 
 n_train, n_train_pos, losses = 0, 0, []
 all_classes = np.array([0, 1])
 #clf = PassiveAggressiveClassifier()
 #TODO: 
-#clf = SGDClassifier(loss='log', n_jobs=-1) 
+clf = SGDClassifier(loss='log', n_jobs=-1) 
 #clf = Perceptron() 
-clf = MultinomialNB(alpha=0.01)
+#clf = MultinomialNB(alpha=0.01)
 t0 = time.time()    
 tf = t0
 #for irun, chunk in enumerate(pd.read_sql_query("SELECT * FROM trainSearchStream WHERE IsClick IN (0,1) ORDER BY RANDOM();", engine, chunksize=2000000)):

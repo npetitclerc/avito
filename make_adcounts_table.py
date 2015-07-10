@@ -13,18 +13,24 @@ import time
 engine = create_engine('sqlite:////home/ubuntu/data/avito/db/database.sqlite')
 engine2 = create_engine('sqlite:////home/ubuntu/data/avito/db/database2.sqlite')
 
-ads_temp = pd.read_sql_query("SELECT AdID FROM AdInfo;", engine)
-adids = ads_temp['AdID'].unique()
+for irun, chunk in enumerate(pd.read_sql_query("SELECT AdID FROM AdsInfo;", engine, chunksize=10)):
+    adids = chunk['AdID']
+    #search_temp = pd.read_sql_query("SELECT AdID, count(*) as c_search FROM trainSearchStream WHERE AdID in (" + ",".join(map(str, adids)) + ") GROUP BY AdID;", engine)
+    search_temp = pd.read_sql_query("SELECT AdID, count(*) as c_search FROM trainSearchRandom WHERE AdID in (" + ",".join(map(str, adids)) + ") GROUP BY AdID;", engine2)
+    #print search_temp.keys()
+    chunk = pd.merge(chunk, search_temp, how='left', on=['AdID'])
 
-visit_temp = pd.read_sql_query("SELECT AdID, count(*) as c_visit FROM VisitsStream GROUP BY AdID;", engine)
-phone_temp = pd.read_sql_query("SELECT AdID, count(*) as c_phone FROM PhoneRequestsStream  GROUP BY AdID;", engine)
-search_temp = pd.read_sql_query("SELECT AdID, count(*) as c_search FROM SearchStream GROUP BY AdID;", engine)
+    #ads_temp = pd.read_sql_query("SELECT AdID FROM AdsInfo;", engine)
+    #print ads_temp.keys()
+    visit_temp = pd.read_sql_query("SELECT AdID, count(*) as c_visit FROM VisitsStream WHERE AdID in (" + ",".join(map(str, adids)) + ") GROUP BY AdID;", engine)
+    #print visit_temp.keys()
+    visit_temp['c_ratio_visit'] = visit_temp['c_visit'] / search_temp['c_search'].astype(float)
+    chunk = pd.merge(chunk, visit_temp, how='left', on=['AdID'])
 
-visit_temp['c_ratio_visit'] = visit_temp['c_visit'] / search_temp['c_search'].astype(float)
-phone_temp['c_ratio_phone'] = phone_temp['c_phone'] / search_temp['c_search'].astype(float)    
-
-ads_train_temp = pd.merge(ads_temp, search_temp, how='left', on=['AdID'])
-ads_temp = pd.merge(ads_temp, visit_temp, how='left', on=['AdID'])
-ads_train_temp = pd.merge(ads_temp, phone_temp, how='left', on=['AdID'])
-
-ads_temp.to_sql('AdCounts', engine2, flavor='sqlite', if_exists='append', index=False)
+    phone_temp = pd.read_sql_query("SELECT AdID, count(*) as c_phone FROM PhoneRequestsStream WHERE AdID in (" + ",".join(map(str, adids)) + ") GROUP BY AdID;", engine)
+    #print phone_temp.keys()
+    phone_temp['c_ratio_phone'] = phone_temp['c_phone'] / search_temp['c_search'].astype(float)    
+    chunk = pd.merge(chunk, phone_temp, how='left', on=['AdID'])
+    print chunk
+    print "--"
+    chunk.to_sql('AdCounts', engine2, flavor='sqlite', if_exists='append', index=False)

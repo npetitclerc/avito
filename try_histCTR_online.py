@@ -16,7 +16,7 @@ def make_chunk_features(chunk):
     Y_train_temp = chunk['IsClick']
     del chunk['IsClick']
     X_train_temp = chunk[['HistCTR', 'Position']]
-    adids = X_train_temp['AdID'].unique()
+#    adids = X_train_temp['AdID'].unique()
 #    searchids = X_train_temp['SearchID'].unique()
      
     # AdID, LocationID, CategoryID, Params, Price, Title
