@@ -4,10 +4,13 @@ from sqlalchemy import create_engine
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.linear_model import SGDClassifier, Perceptron, PassiveAggressiveClassifier
 from sklearn.metrics import log_loss
+from sklearn.preprocessing import scale
 import time
+import pickle
 
 engine = create_engine('sqlite:////home/ubuntu/data/avito/db/database.sqlite')
 engine2 = create_engine('sqlite:////home/ubuntu/data/avito/db/database2.sqlite')
+clf_file = "clf_SGD_adstats.pkl"
 
 def make_chunk_features(chunk):
     """ Make all queries to build the chunk's features and return X and Y
@@ -15,16 +18,19 @@ def make_chunk_features(chunk):
     #Y_train = Y_train.append(chunk['IsClick'])
     Y_train_temp = chunk['IsClick']
     del chunk['IsClick']
-    X_train_temp = chunk[['HistCTR', 'Position', 'AdID']]
-    adids = X_train_temp['AdID'].unique()
+    X_train_temp = chunk[['HistCTR', 'Position']]
+#    adids = chunk['AdID'].unique()
 #    searchids = X_train_temp['SearchID'].unique()
     
-    visit_temp = pd.read_sql_query("SELECT AdID, count(*) as c_visit FROM VisitsStream WHERE AdID in (" + ",".join(map(str, adids)) + ") GROUP BY AdID;", engine)
-    phone_temp = pd.read_sql_query("SELECT AdID, count(*) as c_phone FROM PhoneRequestsStream WHERE AdID in (" + ",".join(map(str, adids)) + ") GROUP BY AdID;", engine)
-    search_temp = pd.read_sql_query("SELECT AdID, count(*) as c_search FROM trainSearchRandom WHERE AdID in (" + ",".join(map(str, adids)) + ") GROUP BY AdID;", engine2)
+#    adcounts_temp = pd.read_sql_query("SELECT * FROM AdCounts WHERE AdID in (" + ",".join(map(str, adids)) + ");", engine2)
+#    visit_temp = pd.read_sql_query("SELECT AdID, count(*) as c_visit FROM VisitsStream WHERE AdID in (" + ",".join(map(str, adids)) + ") GROUP BY AdID;", engine)
+#    phone_temp = pd.read_sql_query("SELECT AdID, count(*) as c_phone FROM PhoneRequestsStream WHERE AdID in (" + ",".join(map(str, adids)) + ") GROUP BY AdID;", engine)
+#    search_temp = pd.read_sql_query("SELECT AdID, count(*) as c_search FROM trainSearchRandom WHERE AdID in (" + ",".join(map(str, adids)) + ") GROUP BY AdID;", engine2)
     
-    visit_temp['c_ratio_visit'] = visit_temp['c_visit'] / search_temp['c_search'].astype(float)
-    phone_temp['c_ratio_phone'] = phone_temp['c_phone'] / search_temp['c_search'].astype(float)    
+#    adcounts_temp['c_ratio_visit'] = adcounts_temp['c_visit'].astype(float) / adcounts_temp['c_search']
+#    adcounts_temp['c_ratio_phone'] = adcounts_temp['c_phone'].astype(float) / adcounts_temp['c_search']    
+#    visit_temp['c_ratio_visit'] = visit_temp['c_visit'] / search_temp['c_search'].astype(float)
+#    phone_temp['c_ratio_phone'] = phone_temp['c_phone'] / search_temp['c_search'].astype(float)    
     
     # AdID, LocationID, CategoryID, Params, Price, Title
     #TODO: Params and Title are ignored
@@ -60,9 +66,10 @@ def make_chunk_features(chunk):
 #    acat_temp = pd.read_sql_query("SELECT CategoryID as AdCategoryID, Level as AdCatLevel, ParentCategoryID as AdParentCategoryID, SubcategoryID as AdSubcategoryID FROM Category where AdCategoryID in (" + ",".join(map(str, acat_ids)) + ");", engine)
     
     # Join tables
-    X_train_temp = pd.merge(X_train_temp, visit_temp, how='left', on=['AdID'])
-    X_train_temp = pd.merge(X_train_temp, phone_temp, how='left', on=['AdID'])
-    X_train_temp = pd.merge(X_train_temp, search_temp, how='left', on=['AdID'])
+#    X_train_temp = pd.merge(X_train_temp, adcounts_temp, how='left', on=['AdID'])
+#    X_train_temp = pd.merge(X_train_temp, visit_temp, how='left', on=['AdID'])
+#    X_train_temp = pd.merge(X_train_temp, phone_temp, how='left', on=['AdID'])
+#    X_train_temp = pd.merge(X_train_temp, search_temp, how='left', on=['AdID'])
 #    X_train_temp = pd.merge(X_train_temp, ads_temp, how='left', on=['AdID'])
 #    X_train_temp = pd.merge(X_train_temp, search_temp, how='left', on=['SearchID'])    
 #    X_train_temp = pd.merge(X_train_temp, user_temp, how='left', on=['UserID']) 
@@ -83,14 +90,20 @@ def make_chunk_features(chunk):
 #    X_train_temp['phone_requests'] = counts_phone
 #    del X_train_temp['SearchDate'] #TODO
 #    X_train_temp = X_train_temp.replace('', 0, regex=True) # Replace empty strings by zeros
-    print X_train_temp[:10]
-    return X_train_temp.fillna(0), Y_train_temp
+#    del X_train_temp['AdID']
+    #del X_train_temp['c_search']
+    #del X_train_temp['c_visit']
+    #del X_train_temp['c_phone']
+    X_train_temp.fillna(0)
+    X_train_temp = pd.DataFrame(scale(X_train_temp), columns=X_train_temp.columns)
+    #print X_train_temp[-10:]
+    return X_train_temp, Y_train_temp
 
 n_train, n_train_pos, losses = 0, 0, []
 all_classes = np.array([0, 1])
 #clf = PassiveAggressiveClassifier()
 #TODO: 
-clf = SGDClassifier(loss='log', n_jobs=-1) 
+clf = SGDClassifier(loss='log', n_jobs=-1, warm_start=True) 
 #clf = Perceptron() 
 #clf = MultinomialNB(alpha=0.01)
 t0 = time.time()    
@@ -100,15 +113,15 @@ tf = t0
 for irun, chunk in enumerate(pd.read_sql_query("SELECT * FROM trainSearchRandom;", engine2, chunksize=2000000)):
     # for chunk in pd.read_sql_query("SELECT * FROM trainSearchStream", engine, chunksize=10000):
     ti = time.time()
-    print "Query time: ", ti - tf
+    #print "Query time: ", ti - tf
     if irun == 0:
         X_val, Y_val = make_chunk_features(chunk)
         tj = time.time()
-        print "Make feature time: ", tj - ti
+        #print "Make feature time: ", tj - ti
     else:
         X_train_temp, Y_train_temp = make_chunk_features(chunk)   
         tj = time.time()
-        print "Make feature time: ", tj - ti
+        #print "Make feature time: ", tj - ti
         clf.partial_fit(X_train_temp, Y_train_temp, classes=all_classes)
             
         n_train += len(X_train_temp)
@@ -121,12 +134,10 @@ for irun, chunk in enumerate(pd.read_sql_query("SELECT * FROM trainSearchRandom;
         #scores.append(s)
         #print "Score: ", s, "n_train: ", n_train, "n_train_pos: ", n_train_pos
     tf = time.time()
-    print "Training time: ", tj - ti
+    #print "Training time: ", tj - ti
 y_pred = clf.predict_proba(X_val.values.astype(float))
 logloss = log_loss(Y_val.values.astype(float), y_pred)
-#print scores    
 print "Logloss: ", logloss
+pickle.dump(clf, open(clf_file, 'w'))
 
-#X_train.to_csv("X_train.csv", index=False)    
-#Y_train.to_csv("Y_train.csv", index=False)
     

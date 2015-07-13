@@ -1,12 +1,13 @@
 import numpy as np
 import pandas as pd
+from sklearn.preprocessing import scale
 from sqlalchemy import create_engine
 import time
 import pickle
 
 engine = create_engine('sqlite:////home/ubuntu/data/avito/db/database.sqlite')
-submission_file = "submission.csv"
-clf_file = "clf_SGD_histctr_pos.pkl"
+submission_file = "submission_scale.csv"
+clf_file = "clf_SGD_histctr_pos_scale.pkl"
 
 def make_chunk_features(chunk):
     """ Make all queries to build the chunk's features
@@ -15,7 +16,9 @@ def make_chunk_features(chunk):
     output = pd.DataFrame(chunk['TestId'])
     output.columns = ['ID']
     #output['ID'] = output['ID'].astype(int)
-    X_test = X_test.replace('', 0, regex=True) # Replace empty strings by zeros
+    X_test.fillna(0)
+    X_test = pd.DataFrame(scale(X_test), columns=X_test.columns)
+    #X_test = X_test.replace('', 0, regex=True) # Replace empty strings by zeros
     return X_test, output
 
 clf = pickle.load(open(clf_file, 'r'))    
